@@ -80,7 +80,7 @@ LINKS_PER_CATEGORY = 10
 
 def fetch_shorts_for_category(category, count=10):
     query_text = category.replace('_', ' ')
-    search_query = f"ytsearch25:#shorts {query_text} AI video"
+    search_query = f"ytsearch35:#shorts {query_text} AI video"
     
     cmd = [
         "yt-dlp",
@@ -89,6 +89,7 @@ def fetch_shorts_for_category(category, count=10):
         "--flat-playlist",
         "--ignore-errors",
         "--no-warnings",
+        "--match-filter", "duration <= 60 & duration > 0",  # Strict 1 minute (<= 60 sec) cutoff
         "--extractor-args", "youtube:player_client=android,web"
     ]
     
@@ -104,7 +105,12 @@ def fetch_shorts_for_category(category, count=10):
             video_data = json.loads(line_str)
             video_id = video_data.get("id")
             title = video_data.get("title", "AI Shorts Video")
+            duration = video_data.get("duration")
             
+            # Duration Check: Ensure video is strictly 60 seconds or less
+            if duration is not None and duration > 60:
+                continue
+
             if video_id and video_id not in seen_ids:
                 seen_ids.add(video_id)
                 results.append({
@@ -122,7 +128,7 @@ def fetch_shorts_for_category(category, count=10):
 def main():
     json_filename = "data.json"
     
-    # Existing data.json load karke merge karne ka logic
+    # Load existing data.json
     if os.path.exists(json_filename):
         try:
             with open(json_filename, "r", encoding="utf-8") as f:
@@ -136,7 +142,7 @@ def main():
         data["categories"] = {}
 
     total_new_fetched = 0
-    print(f"Starting to fetch {len(CATEGORIES)} new categories...")
+    print(f"Starting to fetch {len(CATEGORIES)} new categories (Shorts <= 60s)...")
     
     for idx, category in enumerate(CATEGORIES, 1):
         shorts = fetch_shorts_for_category(category, LINKS_PER_CATEGORY)
@@ -145,7 +151,7 @@ def main():
         print(f"[{idx}/{len(CATEGORIES)}] {category}: {len(shorts)} shorts added.")
         time.sleep(0.1)
 
-    # Save merged data
+    # Save merged JSON
     with open(json_filename, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
@@ -154,7 +160,7 @@ def main():
 
     print("\n==========================================")
     print(f"[SUCCESS] Merged and Saved to {json_filename}")
-    print(f"New Links Added Today: {total_new_fetched}")
+    print(f"New Shorts Added Today: {total_new_fetched}")
     print(f"Total Categories in JSON: {total_cats}")
     print(f"Total Combined Links in JSON: {total_links}")
     print("==========================================")
